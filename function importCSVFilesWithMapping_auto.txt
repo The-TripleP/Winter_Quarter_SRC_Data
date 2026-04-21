@@ -1,0 +1,138 @@
+function importCSVFilesWithMapping() {
+  var spreadsheetId = "";
+  var ss = SpreadsheetApp.openById(spreadsheetId);
+
+
+  var parentFolderId = ""; // replace with your folder ID
+  var statusSheet = ss.getSheetByName("Status Check");
+
+
+  if (statusSheet) statusSheet.getRange("A1").setValue("Starting CSV import...");
+
+
+  // Your mapping (row → target sheet)
+  var mappings = [
+    {row: 2, sheetName: "Cardio Equipment"},
+    {row: 3, sheetName: "Basketball (Upper Court)"},
+    {row: 4, sheetName: "Badminton (Upper Court)"},
+    {row: 5, sheetName: "Functional Training Area"},
+    {row: 6, sheetName: "MPR E"},
+    {row: 7, sheetName: "Squash Court"},
+    {row: 8, sheetName: "Racquetball Courts"},
+    {row: 9, sheetName: "FitWell Studio"},
+    {row: 10, sheetName: "MPR D"},
+    {row: 11, sheetName: "MPR A"},
+    {row: 12, sheetName: "MPR B"},
+    {row: 13, sheetName: "MPR C"},
+    {row: 14, sheetName: "Mirror Space"},
+    {row: 15, sheetName: "Volleyball (Lower Courts)"},
+    {row: 16, sheetName: "Basketball (Lower Court)"},
+    {row: 17, sheetName: "Ping Pong"},
+    {row: 18, sheetName: "Lower Weight Room"},
+    {row: 19, sheetName: "Lap Pool"},
+    {row: 20, sheetName: "Rec Pool"},
+    {row: 21, sheetName: "Upper Weight Room"},
+    {row: 22, sheetName: "Pool Deck"},
+    {row: 23, sheetName: "Escape Fitness Functional Training Rig (Jungle Gym)"},
+    {row: 24, sheetName: "Volleyball"},
+    {row: 25, sheetName: "Power Training Platforms"},
+    {row: 26, sheetName: "Spa"},
+    {row: 27, sheetName: "Volleyball (MAC)"},
+    {row: 28, sheetName: "Pool Grass Area"},
+    {row: 29, sheetName: "Indoor Soccer (MAC)"},
+    {row: 30, sheetName: "Basketball (MAC)"},
+    {row: 31, sheetName: "Pool"},
+    {row: 34, sheetName: "Outdoor Volleyball"},
+    {row: 35, sheetName: "The Rock"},
+    {row: 36, sheetName: "Tennis Courts"},
+    {row: 37, sheetName: "Treadmills"},
+    {row: 38, sheetName: "Stair Masters"},
+    {row: 39, sheetName: "Ellipticals"},
+    {row: 40, sheetName: "Bikes"},
+    {row: 41, sheetName: "Indoor Track"},
+    {row: 42, sheetName: "Pool Lawn"},
+    {row: 43, sheetName: "Boxing Rig"}
+  ];
+
+
+  // Pre-cache existing rows for deduplication
+  var sheetCache = {};
+  mappings.forEach(map => {
+    var sheet = ss.getSheetByName(map.sheetName);
+    if (!sheet) return;
+    var data = sheet.getDataRange().getValues();
+    var set = new Set(data.map(r => r.map(s => String(s).trim()).join()));
+    sheetCache[map.sheetName] = {sheet: sheet, existing: set, newRows: []};
+  });
+
+
+  // Recursive folder processing
+  function processFolder(folder) {
+    var files = folder.getFilesByType(MimeType.CSV);
+    while (files.hasNext()) {
+      var file = files.next();
+      var fileName = file.getName();
+
+
+      // Show progress
+      if (statusSheet) statusSheet.getRange("A1").setValue("Processing: " + fileName);
+      Logger.log("Processing file: " + fileName);
+
+
+      var csv = Utilities.parseCsv(file.getBlob().getDataAsString());
+
+
+      mappings.forEach(map => {
+        var rowIndex = map.row - 1;
+        if (rowIndex >= csv.length) return;
+        var row = csv[rowIndex].slice(0, 8);
+
+
+        // skip empty rows
+        if (row.every(cell => cell === "")) return;
+
+
+        var key = row.map(s => String(s).trim()).join();
+        var cache = sheetCache[map.sheetName];
+        if (!cache) return;
+
+
+        if (!cache.existing.has(key)) {
+          cache.newRows.push(row);
+          cache.existing.add(key);
+          Logger.log("Added row " + map.row + " → " + map.sheetName + " from " + fileName);
+        }
+      });
+
+
+      // Mark file processed
+      file.setDescription("processed");
+    }
+
+
+    // Recurse into subfolders
+    var subfolders = folder.getFolders();
+    while (subfolders.hasNext()) {
+      processFolder(subfolders.next());
+    }
+  }
+
+
+  // Start processing
+  var parentFolder = DriveApp.getFolderById(parentFolderId);
+  processFolder(parentFolder);
+
+
+  // Batch append all new rows
+  Object.values(sheetCache).forEach(obj => {
+    if (obj.newRows.length > 0) {
+      var startRow = obj.sheet.getLastRow() + 1;
+      obj.sheet.getRange(startRow, 1, obj.newRows.length, 8).setValues(obj.newRows);
+    }
+  });
+
+
+  if (statusSheet) statusSheet.getRange("A1").setValue("Last run: " + new Date());
+  Logger.log("CSV import finished!");
+}
+

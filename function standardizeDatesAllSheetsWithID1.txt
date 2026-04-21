@@ -1,0 +1,70 @@
+function standardizeDatesAllSheetsWithID1() {
+  const ss = SpreadsheetApp.openById("");
+  const spreadsheetId = ss.getId();
+  Logger.log("Spreadsheet ID: " + spreadsheetId); // or use it anywhere you need
+
+
+  const sheetNames = [
+    "Cardio Equipment","Basketball (Upper Court)","Badminton (Upper Court)","Functional Training Area",
+    "MPR E","Squash Court","Racquetball Courts","FitWell Studio","MPR D","MPR A","MPR B","MPR C",
+    "Mirror Space","Volleyball (Lower Courts)","Basketball (Lower Court)","Ping Pong","Lower Weight Room",
+    "Lap Pool","Rec Pool","Upper Weight Room","Pool Deck","Escape Fitness Functional Training Rig (Jungle Gym)",
+    "Volleyball","Power Training Platforms","Spa","Volleyball (MAC)","Pool Grass Area","Indoor Soccer (MAC)",
+    "Basketball (MAC)","Pool","Outdoor Volleyball","The Rock","Tennis Courts","Treadmills","Stair Masters",
+    "Ellipticals","Bikes","Indoor Track","Pool Lawn","Boxing Rig"
+  ];
+
+
+  sheetNames.forEach(name => {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) return;
+
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return; // nothing to process
+
+
+    const range = sheet.getRange(2, 4, lastRow - 1); // column D, skip header
+    const values = range.getValues();
+
+
+    for (let i = 0; i < values.length; i++) {
+      let val = values[i][0];
+
+
+      if (val instanceof Date) continue; // already a date
+
+
+      if (typeof val === "string") {
+        let parts = val.match(/(\d+)\/(\d+)\/(\d+)\s+(\d+):(\d+)(?::(\d+))?\s*(AM|PM)?/i);
+        if (parts) {
+          let month = +parts[1] - 1;
+          let day = +parts[2];
+          let year = +parts[3];
+          let hour = +parts[4];
+          let minute = +parts[5];
+          let second = parts[6] ? +parts[6] : 0;
+          let ampm = parts[7];
+
+
+          if (ampm) {
+            if (ampm.toUpperCase() === "PM" && hour !== 12) hour += 12;
+            if (ampm.toUpperCase() === "AM" && hour === 12) hour = 0;
+          }
+
+
+          values[i][0] = new Date(year, month, day, hour, minute, second);
+        }
+      }
+    }
+
+
+    range.setValues(values);
+    range.setNumberFormat("MM/dd/yyyy HH:mm:ss");
+
+
+    // Sort by column D (oldest → newest)
+    sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn())
+         .sort({column: 4, ascending: true});
+  });
+}

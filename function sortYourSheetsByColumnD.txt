@@ -1,0 +1,31 @@
+function sortYourSheetsByColumnD() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+
+  var sheetNames = [
+    "Cardio Equipment","Basketball (Upper Court)","Badminton (Upper Court)","Functional Training Area",
+    "MPR E","Squash Court","Racquetball Courts","FitWell Studio","MPR D","MPR A","MPR B","MPR C",
+    "Mirror Space","Volleyball (Lower Courts)","Basketball (Lower Court)","Ping Pong","Lower Weight Room",
+    "Lap Pool","Rec Pool","Upper Weight Room","Pool Deck","Escape Fitness Functional Training Rig (Jungle Gym)",
+    "Volleyball","Power Training Platforms","Spa","Volleyball (MAC)","Pool Grass Area","Indoor Soccer (MAC)",
+    "Basketball (MAC)","Pool","Outdoor Volleyball","The Rock","Tennis Courts","Treadmills","Stair Masters",
+    "Ellipticals","Bikes","Indoor Track","Pool Lawn","Boxing Rig"
+  ];
+
+
+  sheetNames.forEach(function(name) {
+    var sheet = ss.getSheetByName(name);
+    if (!sheet) return;
+
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow > 1) { // skip header row
+      sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn())
+           .sort({column: 4, ascending: true}); // Column D
+      Logger.log("Sorted sheet: " + name);
+    }
+  });
+
+
+  Logger.log("All sheets sorted by column D!");
+}
